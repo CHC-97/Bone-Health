@@ -1071,6 +1071,16 @@ footer{background:rgba(255,255,255,.55);border-top:1px solid rgba(60,60,67,.10);
   .risk-group-heading span{font-size:12px;}
 }
 
+
+/* ===== Mobile-friendly T-score slider ===== */
+.tscore-mobile-control{width:100%;}
+.tscore-value-row{display:grid;grid-template-columns:56px minmax(0,1fr) 56px;gap:10px;align-items:center;margin-top:12px;}
+.tscore-step-btn{height:66px;border:0;border-radius:16px;background:#E9F7F2;color:#006B57;font-size:30px;font-weight:800;cursor:pointer;touch-action:manipulation;}
+.tscore-step-btn:active{transform:scale(.96);background:#D9F1E8;}
+.tscore-slider{width:100%;height:38px;accent-color:#007F67;cursor:pointer;}
+.tscore-slider-labels{display:flex;justify-content:space-between;margin-top:-2px;font:12px 'Roboto Mono',monospace;color:#6E6E73;}
+@media(max-width:680px){.tscore-step-btn{height:60px}.tscore-field input{min-height:60px;font-size:32px;text-align:center}.tscore-value-row{grid-template-columns:52px minmax(0,1fr) 52px}}
+
 </style>
 </head>
 <body>
@@ -1183,8 +1193,16 @@ footer{background:rgba(255,255,255,.55);border-top:1px solid rgba(60,60,67,.10);
       <div class="tscore-input-row">
         <div class="tscore-field">
           <label for="tscoreInput">我目前的骨質密度 T 值</label>
-          <input id="tscoreInput" type="number" step="0.1" min="-6" max="3" inputmode="decimal" placeholder="例如：-2.6">
-          <div class="tscore-help">請輸入 DXA 骨密度報告上的 T-score；不確定時可先查看檢查報告。</div>
+          <div class="tscore-mobile-control">
+            <input id="tscoreSlider" class="tscore-slider" type="range" min="-4" max="1" step="0.1" value="-1" aria-label="骨密度 T 值滑桿">
+            <div class="tscore-value-row">
+              <button type="button" class="tscore-step-btn" id="tscoreMinus" aria-label="T 值減少 0.1">−</button>
+              <input id="tscoreInput" type="text" inputmode="decimal" autocomplete="off" placeholder="例如：-2.6" aria-label="骨密度 T 值">
+              <button type="button" class="tscore-step-btn" id="tscorePlus" aria-label="T 值增加 0.1">＋</button>
+            </div>
+            <div class="tscore-slider-labels"><span>−4.0</span><span>−2.5</span><span>−1.0</span><span>1.0</span></div>
+          </div>
+          <div class="tscore-help">手機可直接拖曳滑桿，或使用 −／＋ 每次調整 0.1；也可直接輸入 DXA 報告上的 T-score。</div>
         </div>
         <div class="tscore-mini"><b>判讀分界</b><br>T ≥ -1.0：骨質健康<br>-2.5 &lt; T &lt; -1.0：骨質缺乏<br>T ≤ -2.5：骨質疏鬆</div>
       </div>
@@ -1291,7 +1309,6 @@ footer{background:rgba(255,255,255,.55);border-top:1px solid rgba(60,60,67,.10);
         <div class="trabecular-copy">
           <h5>骨小樑變化示意</h5>
           <p>輸入 T 值後，左側骨小樑會依骨密度分級同步呈現疏密變化，協助您更直觀理解骨質狀況。</p>
-          <span class="trabecular-status" id="trabecularStatus">尚未輸入 T 值</span>
         </div>
       </div>
 
@@ -1552,7 +1569,7 @@ footer{background:rgba(255,255,255,.55);border-top:1px solid rgba(60,60,67,.10);
     <div class="drug-filter" id="drugFilter">
       <button class="filter-btn active" data-filter="all">全部藥物</button>
       <button class="filter-btn" data-filter="build">造骨促進劑</button>
-      <button class="filter-btn" data-filter="resorb">抗骨質再吸收劑</button>
+      <button class="filter-btn" data-filter="resorb">抗骨質流失藥物</button>
     </div>
 
     <div class="drug-grid" id="drugGrid"></div>
@@ -1811,6 +1828,9 @@ updateQuiz();
 
 /* ---------- T-score self input ---------- */
 const tscoreInput = document.getElementById('tscoreInput');
+const tscoreSlider = document.getElementById('tscoreSlider');
+const tscoreMinus = document.getElementById('tscoreMinus');
+const tscorePlus = document.getElementById('tscorePlus');
 const tscoreReminder = document.getElementById('tscoreReminder');
 const tscorePointer = document.getElementById('tscorePointer');
 const tscoreBubble = document.getElementById('tscoreBubble');
@@ -1895,7 +1915,22 @@ function updateTscore(){
     card.classList.toggle('inactive', !active);
   });
 }
-tscoreInput.addEventListener('input', updateTscore);
+function setTscoreValue(value){
+  const v = Math.max(-4, Math.min(1, Math.round(Number(value) * 10) / 10));
+  if(!Number.isFinite(v)) return;
+  tscoreInput.value = v.toFixed(1);
+  tscoreSlider.value = v;
+  updateTscore();
+}
+
+tscoreInput.addEventListener('input', () => {
+  const v = Number(tscoreInput.value);
+  if(Number.isFinite(v)) tscoreSlider.value = Math.max(-4, Math.min(1, v));
+  updateTscore();
+});
+tscoreSlider.addEventListener('input', () => setTscoreValue(tscoreSlider.value));
+tscoreMinus.addEventListener('click', () => setTscoreValue((Number(tscoreInput.value) || 0) - 0.1));
+tscorePlus.addEventListener('click', () => setTscoreValue((Number(tscoreInput.value) || 0) + 0.1));
 updateTscore();
 
 /* ---------- calcium / vitamin D calculator ---------- */
@@ -2005,7 +2040,7 @@ const drugData = [
     name:"益穩挺 Romosozumab", categoryKey:"build", category:"造骨促進劑 · 抑硬素單株抗體",
     route:"皮下注射", frequency:"每 1 個月",
     mechanism:"減少骨質流失，促進骨質生成",
-    coverage:"骨密度 ≤ -3.0 合併2處骨折；或曾用抗骨質再吸收劑無法耐受副作用、或治療一年後再次骨折",
+    coverage:"骨密度 ≤ -3.0 合併2處骨折(含24個月內1處新骨折)",
     sideEffect:"關節痛、頭痛",
     contraindication:"低血鈣、一年內有中風及心肌梗塞者",
     note:"不可使用超過 12 個月"
@@ -2014,13 +2049,13 @@ const drugData = [
     name:"骨穩 Teriparatide／艾歐骨 Alvosteo", categoryKey:"build", category:"造骨促進劑 · 副甲狀腺素",
     route:"皮下注射", frequency:"每天",
     mechanism:"促進骨質生成",
-    coverage:"骨密度 ≤ -3.0 合併2處骨折；或曾用抗骨質再吸收劑無法耐受副作用、或治療一年後再次骨折",
+    coverage:"骨密度 ≤ -3.0 合併2處骨折(含24個月內1處新骨折)",
     sideEffect:"關節痛、噁心",
     contraindication:"尿路結石、高血鈣、骨肉瘤高風險群",
     note:"不可使用超過 24 個月"
   },
   {
-    name:"保骼麗 Denosumab", categoryKey:"resorb", category:"抗骨質再吸收劑 · 類保骨素",
+    name:"保骼麗 Denosumab", categoryKey:"resorb", category:"抗骨質流失藥物 · 類保骨素",
     route:"皮下注射", frequency:"每 6 個月",
     mechanism:"減少骨質流失",
     coverage:"骨密度 ≤ -2.5 合併1處骨折；或 -2.5 &lt; 骨密度 ≤ -1.0 合併2處骨折",
@@ -2029,7 +2064,7 @@ const drugData = [
     note:"不可擅自停藥，治療需轉其他藥物接續治療"
   },
   {
-    name:"福善美 Fosamax", categoryKey:"resorb", category:"抗骨質再吸收劑 · 雙磷酸鹽類",
+    name:"福善美 Fosamax", categoryKey:"resorb", category:"抗骨質流失藥物 · 雙磷酸鹽類",
     route:"口服", frequency:"每 1 週",
     mechanism:"減少骨質流失",
     coverage:"骨密度 ≤ -2.5 合併1處骨折；或 -2.5 &lt; 骨密度 ≤ -1.0 合併2處骨折",
@@ -2038,7 +2073,7 @@ const drugData = [
     note:"洗腎者不建議使用"
   },
   {
-    name:"瑞骨卓 Risedronate", categoryKey:"resorb", category:"抗骨質再吸收劑 · 雙磷酸鹽類",
+    name:"瑞骨卓 Risedronate", categoryKey:"resorb", category:"抗骨質流失藥物 · 雙磷酸鹽類",
     route:"口服", frequency:"每 1 個月",
     mechanism:"減少骨質流失",
     coverage:"骨密度 ≤ -2.5 合併1處骨折；或 -2.5 &lt; 骨密度 ≤ -1.0 合併2處骨折",
@@ -2047,7 +2082,7 @@ const drugData = [
     note:"洗腎者不建議使用"
   },
   {
-    name:"骨維壯 Ibandronate", categoryKey:"resorb", category:"抗骨質再吸收劑 · 雙磷酸鹽類",
+    name:"骨維壯 Ibandronate", categoryKey:"resorb", category:"抗骨質流失藥物 · 雙磷酸鹽類",
     route:"靜脈注射", frequency:"每 3 個月",
     mechanism:"減少骨質流失",
     coverage:"骨密度 ≤ -2.5 合併1處骨折；或 -2.5 &lt; 骨密度 ≤ -1.0 合併2處骨折",
@@ -2056,7 +2091,7 @@ const drugData = [
     note:"洗腎者不建議使用"
   },
   {
-    name:"骨力強 Zoledronate", categoryKey:"resorb", category:"抗骨質再吸收劑 · 雙磷酸鹽類",
+    name:"骨力強 Zoledronate", categoryKey:"resorb", category:"抗骨質流失藥物 · 雙磷酸鹽類",
     route:"靜脈注射", frequency:"每 1 年",
     mechanism:"減少骨質流失",
     coverage:"骨密度 ≤ -2.5 合併1處骨折；或 -2.5 &lt; 骨密度 ≤ -1.0 合併2處骨折",
@@ -2065,7 +2100,7 @@ const drugData = [
     note:"洗腎者不建議使用"
   },
   {
-    name:"鈣穩 Raloxifene", categoryKey:"resorb", category:"抗骨質再吸收劑 · 選擇性雌激素接受體調節劑",
+    name:"鈣穩 Raloxifene", categoryKey:"resorb", category:"抗骨質流失藥物 · 選擇性雌激素接受體調節劑",
     route:"口服", frequency:"每天",
     mechanism:"減少骨質流失",
     coverage:"骨密度 ≤ -2.5 合併1處骨折；或 -2.5 &lt; 骨密度 ≤ -1.0 合併2處骨折",
